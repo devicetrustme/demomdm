@@ -2,21 +2,24 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import { Shield, Users } from "lucide-react";
+import { Shield, Layers } from "lucide-react";
 import { useSession } from "../../../../lib/session";
-import { MANAGERS, SUBDIRECTORS } from "../../../../lib/mock-data";
+import { SUBDIRECTORS, DIRECTORS } from "../../../../lib/mock-data";
 
-export default function LoginGerentePage() {
+export default function LoginSubdirectorPage() {
   const { login } = useSession();
   const router = useRouter();
-  const [managerId, setManagerId] = useState("mgr-R3-pyme");
+  const [subDirectorId, setSubDirectorId] = useState(SUBDIRECTORS[0].id);
   const [password, setPassword] = useState("demo123");
 
   const handleLogin = (e) => {
     e.preventDefault();
-    const manager = MANAGERS.find((m) => m.id === managerId);
-    login("manager", manager.name, { managerId: manager.id, region: manager.region, segment: manager.segment });
-    router.push("/dashboard");
+    const sd = SUBDIRECTORS.find((s) => s.id === subDirectorId);
+    const director = DIRECTORS.find((d) => d.id === sd.directorId);
+    login("subdirector", sd.name, {
+      subDirectorId: sd.id, channel: sd.channel, regions: sd.regions, directorName: director?.name,
+    });
+    router.push("/subdireccion");
   };
 
   return (
@@ -24,26 +27,22 @@ export default function LoginGerentePage() {
       <div className="max-w-sm w-full bg-white border border-slate-200 rounded-xl p-6">
         <div className="flex flex-col items-center mb-6">
           <div className="w-11 h-11 rounded-xl bg-blue-600 flex items-center justify-center mb-3">
-            <Users className="w-5 h-5 text-white" />
+            <Layers className="w-5 h-5 text-white" />
           </div>
-          <p className="text-base font-semibold text-slate-900">Dashboard del gerente</p>
-          <p className="text-sm text-slate-400">Acceso interno — HONOR México</p>
+          <p className="text-base font-semibold text-slate-900">Dashboard del Subdirector</p>
+          <p className="text-sm text-slate-400">Acceso interno — ScaleFusion Telcel</p>
         </div>
 
         <form onSubmit={handleLogin} className="space-y-3">
           <div>
-            <label className="text-sm text-slate-500 mb-1 block">Perfil de gerente (demo)</label>
+            <label className="text-sm text-slate-500 mb-1 block">Perfil de subdirector (demo)</label>
             <select
-              value={managerId}
-              onChange={(e) => setManagerId(e.target.value)}
+              value={subDirectorId}
+              onChange={(e) => setSubDirectorId(e.target.value)}
               className="w-full text-base border border-slate-200 rounded-lg px-3 py-2.5"
             >
               {SUBDIRECTORS.map((sd) => (
-                <optgroup key={sd.id} label={sd.name}>
-                  {MANAGERS.filter((m) => m.subDirectorId === sd.id).map((m) => (
-                    <option key={m.id} value={m.id}>{m.name}</option>
-                  ))}
-                </optgroup>
+                <option key={sd.id} value={sd.id}>{sd.name}</option>
               ))}
             </select>
           </div>
@@ -61,7 +60,7 @@ export default function LoginGerentePage() {
           </button>
         </form>
         <p className="text-sm text-slate-400 text-center mt-4 flex items-center justify-center gap-1">
-          <Shield className="w-3 h-3" /> 16 gerentes en R1–R8 (2 subdirectores) + 10 en R9 (3 subdirectores)
+          <Shield className="w-3 h-3" /> Cada subdirector ve solo las gerencias de su propio canal
         </p>
       </div>
     </div>

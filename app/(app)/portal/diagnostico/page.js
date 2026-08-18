@@ -10,6 +10,7 @@ import { useDataStore } from "../../../../lib/data-store";
 import { AppTopBar } from "../../../../components/ui";
 import { VENDORS } from "../../../../lib/mock-data";
 import { QUESTIONS, calcRisk } from "../../../../lib/diagnostic-logic";
+import { isValidEmail, isValidPhone } from "../../../../lib/validators";
 import { SCALEFUSION_TIPS } from "../../../../lib/scalefusion-tips";
 
 const RESULT_ICON = { alta: ArrowUp, media: Minus, baja: Check };
@@ -28,8 +29,12 @@ function VendorDiagnosticoContent() {
   const [answersById, setAnswersById] = useState({});
   const [done, setDone] = useState(false);
   const [clientName, setClientName] = useState("");
+  const [company, setCompany] = useState("");
+  const [email, setEmail] = useState("");
+  const [phone, setPhone] = useState("");
   const [city, setCity] = useState("");
   const [createdOpp, setCreatedOpp] = useState(null);
+  const [formError, setFormError] = useState("");
   const [activeTip, setActiveTip] = useState(null); // { text } — pop-up de guía tras responder
   const total = QUESTIONS.length;
 
@@ -53,10 +58,19 @@ function VendorDiagnosticoContent() {
   };
 
   const guardar = () => {
+    if (email && !isValidEmail(email)) {
+      setFormError("El correo no tiene un formato válido.");
+      return;
+    }
+    if (phone && !isValidPhone(phone)) {
+      setFormError("El teléfono debe tener al menos 10 dígitos.");
+      return;
+    }
+    setFormError("");
     const vendor = VENDORS.find((v) => v.id === session.vendorId);
     const risk = calcRisk(answersById);
     const opp = addOpportunityFromVendorDiagnostic(
-      { client: clientName || "Cliente sin nombre", city, risk: risk.level },
+      { client: clientName || "Cliente sin nombre", company, email, phone, city, risk: risk.level },
       vendor
     );
     setCreatedOpp(opp);
@@ -108,7 +122,22 @@ function VendorDiagnosticoContent() {
           <div className="space-y-2.5 mb-5">
             <input
               value={clientName} onChange={(e) => setClientName(e.target.value)}
-              placeholder="Nombre de la empresa o cliente"
+              placeholder="Nombre del contacto"
+              className="w-full text-base border border-slate-200 rounded-lg px-3 py-2.5"
+            />
+            <input
+              value={company} onChange={(e) => setCompany(e.target.value)}
+              placeholder="Compañía"
+              className="w-full text-base border border-slate-200 rounded-lg px-3 py-2.5"
+            />
+            <input
+              value={email} onChange={(e) => setEmail(e.target.value)}
+              placeholder="Correo"
+              className="w-full text-base border border-slate-200 rounded-lg px-3 py-2.5"
+            />
+            <input
+              value={phone} onChange={(e) => setPhone(e.target.value)}
+              placeholder="Teléfono"
               className="w-full text-base border border-slate-200 rounded-lg px-3 py-2.5"
             />
             <input
@@ -117,6 +146,8 @@ function VendorDiagnosticoContent() {
               className="w-full text-base border border-slate-200 rounded-lg px-3 py-2.5"
             />
           </div>
+
+          {formError && <p className="text-sm text-red-600 mb-3">{formError}</p>}
 
           <button
             onClick={guardar}

@@ -9,7 +9,8 @@ import { RequireRole } from "../../../lib/require-role";
 import { useSession } from "../../../lib/session";
 import { useDataStore } from "../../../lib/data-store";
 import { AppTopBar, Pill } from "../../../components/ui";
-import { vendorsForManager, managersForRegion } from "../../../lib/mock-data";
+import { vendorsForManager, managersForRegion, CHANNEL_LABEL } from "../../../lib/mock-data";
+import { opportunityMonthlyValue, formatMXN } from "../../../lib/finance";
 
 function DashboardContent() {
   const { session } = useSession();
@@ -27,6 +28,7 @@ function DashboardContent() {
   // Actividad de mis propios vendedores ya asignados
   const myOpps = opportunities.filter((o) => myVendors.some((v) => v.id === o.vendorId));
   const totalOpen = myOpps.filter((o) => o.status !== "concluida").length;
+  const pipelineValue = myOpps.filter((o) => o.status !== "concluida").reduce((sum, o) => sum + opportunityMonthlyValue(o), 0);
   const vendorStats = myVendors.map((v) => {
     const opps = opportunities.filter((o) => o.vendorId === v.id);
     return { ...v, openCount: opps.filter((o) => o.status !== "concluida").length, total: opps.length };
@@ -69,7 +71,7 @@ function DashboardContent() {
         <div className="flex-1 p-5">
           <div className="flex items-center justify-between mb-5">
             <div>
-              <p className="text-base font-semibold text-slate-900">Región {session.region} · {session.segment === "general" ? "Cuentas especiales" : session.segment === "pyme" ? "PyME" : "Corporativo"}</p>
+              <p className="text-base font-semibold text-slate-900">Región {session.region} · {CHANNEL_LABEL[session.segment] || session.segment}</p>
               <p className="text-sm text-slate-400">{session.name}</p>
             </div>
             <button onClick={() => setMsgTarget("all")} className="flex items-center gap-1.5 bg-blue-600 text-white text-sm px-3.5 py-2 rounded-lg">
@@ -77,11 +79,16 @@ function DashboardContent() {
             </button>
           </div>
 
-          <div className="grid grid-cols-3 gap-3 mb-5">
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-5">
             <div className="rounded-xl border border-slate-200 p-3.5">
               <TrendingUp className="w-4 h-4 text-blue-600 mb-2" />
               <p className="text-lg font-semibold text-slate-900">{totalOpen}</p>
               <p className="text-sm text-slate-400">Oportunidades abiertas</p>
+            </div>
+            <div className="rounded-xl border border-slate-200 p-3.5">
+              <TrendingUp className="w-4 h-4 text-emerald-600 mb-2" />
+              <p className="text-lg font-semibold text-slate-900">{formatMXN(pipelineValue)}</p>
+              <p className="text-sm text-slate-400">Pipeline / mes</p>
             </div>
             <div className="rounded-xl border border-slate-200 p-3.5">
               <Users className="w-4 h-4 text-blue-600 mb-2" />

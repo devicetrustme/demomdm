@@ -9,6 +9,7 @@ import { useSession } from "../../../../../lib/session";
 import { useDataStore } from "../../../../../lib/data-store";
 import { AppTopBar, Pill } from "../../../../../components/ui";
 import { VENDORS, statusMeta } from "../../../../../lib/mock-data";
+import { opportunityMonthlyValue, formatMXN } from "../../../../../lib/finance";
 
 function VendedorDrillDownContent() {
   const { id } = useParams();
@@ -19,11 +20,13 @@ function VendedorDrillDownContent() {
 
   const vendor = VENDORS.find((v) => v.id === id);
   const opps = opportunities.filter((o) => o.vendorId === id);
+  const backHref = session.role === "subdirector" ? "/subdireccion" : "/dashboard";
+  const backLabel = session.role === "subdirector" ? "Subdirección" : "Dashboard";
 
   if (!vendor) {
     return (
       <div className="max-w-md mx-auto px-5 py-10 text-center text-base text-slate-400">
-        Vendedor no encontrado. <Link href="/dashboard" className="text-blue-600">Volver</Link>
+        Vendedor no encontrado. <Link href={backHref} className="text-blue-600">Volver</Link>
       </div>
     );
   }
@@ -37,8 +40,8 @@ function VendedorDrillDownContent() {
     <div className="min-h-screen">
       <AppTopBar title="Detalle del vendedor" />
       <div className="max-w-2xl mx-auto px-5 py-6">
-        <Link href="/dashboard" className="flex items-center gap-1.5 text-sm text-slate-400 mb-4">
-          <ArrowLeft className="w-3.5 h-3.5" /> Dashboard
+        <Link href={backHref} className="flex items-center gap-1.5 text-sm text-slate-400 mb-4">
+          <ArrowLeft className="w-3.5 h-3.5" /> {backLabel}
         </Link>
 
         <div className="bg-white border border-slate-200 rounded-xl p-4 mb-5 flex items-center justify-between">
@@ -63,6 +66,7 @@ function VendedorDrillDownContent() {
         <div className="rounded-xl border border-slate-200 overflow-hidden">
           {opps.map((o, i) => {
             const st = statusMeta(o.status);
+            const value = opportunityMonthlyValue(o);
             return (
               <div
                 key={o.id}
@@ -74,7 +78,10 @@ function VendedorDrillDownContent() {
                   <p className="text-slate-900 font-medium">{o.client}</p>
                   <p className="text-slate-400 text-xs">{o.city} · {o.createdAt}</p>
                 </div>
-                <Pill tone={st.tone}>{st.label}</Pill>
+                <div className="flex items-center gap-2">
+                  {value > 0 && <span className="text-slate-500">{formatMXN(value)}/mes</span>}
+                  <Pill tone={st.tone}>{st.label}</Pill>
+                </div>
               </div>
             );
           })}
@@ -108,7 +115,7 @@ function VendedorDrillDownContent() {
 
 export default function VendedorDrillDownPage() {
   return (
-    <RequireRole roles="manager" loginPath="/login/gerente">
+    <RequireRole roles={["manager", "subdirector"]} loginPath="/login/gerente">
       <VendedorDrillDownContent />
     </RequireRole>
   );

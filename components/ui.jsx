@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { Shield, Smartphone, Apple, ArrowLeft, LogOut } from "lucide-react";
-import { useSession } from "../lib/session";
+import { useSession, logoutDestination } from "../lib/session";
 import { useRouter } from "next/navigation";
 
 // Barra simple usada en páginas públicas / de prueba, con link de regreso al home.
@@ -27,8 +27,11 @@ export function AppTopBar({ title }) {
   const router = useRouter();
 
   const handleLogout = () => {
-    logout();
-    router.push("/");
+    // Se navega primero y la sesión se limpia un instante después — si se
+    // limpia de inmediato, RequireRole detecta "sin sesión" en esta misma
+    // pantalla antes de que termine de cambiar de página, y se ve en blanco.
+    router.push(logoutDestination(session?.role));
+    setTimeout(() => logout(), 300);
   };
 
   return (

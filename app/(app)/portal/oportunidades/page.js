@@ -6,7 +6,7 @@ import { RequireRole } from "../../../../lib/require-role";
 import { useSession } from "../../../../lib/session";
 import { useDataStore } from "../../../../lib/data-store";
 import { AppTopBar, Pill } from "../../../../components/ui";
-import { statusMeta } from "../../../../lib/mock-data";
+import { statusMeta, licenseById } from "../../../../lib/mock-data";
 
 function OportunidadesContent() {
   const { session } = useSession();
@@ -24,13 +24,18 @@ function OportunidadesContent() {
         <div className="space-y-2.5">
           {myOpps.map((o) => {
             const st = statusMeta(o.status);
+            const lic = o.licenseId ? licenseById(o.licenseId) : null;
+            const monthlyValue = lic && o.deviceCountEstimate ? lic.price * o.deviceCountEstimate : null;
             return (
               <Link
                 key={o.id}
                 href={`/portal/oportunidad/${o.id}`}
                 className="block rounded-xl border border-slate-200 bg-white p-3.5 hover:border-blue-300 transition-colors"
               >
-                <p className="text-base font-medium text-slate-900 mb-2">{o.client}</p>
+                <div className="mb-2">
+                  <p className="text-base font-medium text-slate-900">{o.client}</p>
+                  {o.company && <p className="text-sm text-slate-400">{o.company}</p>}
+                </div>
                 <div className="flex items-center gap-2 flex-wrap">
                   <Pill tone={st.tone}>{st.label}</Pill>
                   <span className="inline-flex items-center gap-1 text-sm text-slate-400">
@@ -39,6 +44,11 @@ function OportunidadesContent() {
                   <span className="inline-flex items-center gap-1 text-sm text-slate-400">
                     <MapPin className="w-3 h-3" /> {o.city}
                   </span>
+                  {monthlyValue && (
+                    <span className="text-sm text-blue-600 font-medium">
+                      ${monthlyValue.toLocaleString("es-MX")}/mes
+                    </span>
+                  )}
                 </div>
               </Link>
             );

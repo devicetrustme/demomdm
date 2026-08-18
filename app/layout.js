@@ -3,7 +3,7 @@ import { SessionProvider } from "../lib/session";
 import { DataProvider } from "../lib/data-store";
 
 export const metadata = {
-  title: "HONOR México — Diagnóstico y Delivery MDM (Demo)",
+  title: "ScaleFusion Telcel — Diagnóstico y Delivery",
   description: "Demo local de navegación — no conectado a base de datos real",
 };
 

@@ -11,12 +11,14 @@ const OPP_KEY = "honor_demo_opportunities";
 const MSG_KEY = "honor_demo_messages";
 const DIAG_KEY = "honor_demo_diagnostics";
 const NPS_KEY = "honor_demo_nps";
+const DEMO_REQ_KEY = "honor_demo_demo_requests";
 
 export function DataProvider({ children }) {
   const [opportunities, setOpportunities] = useState(INITIAL_OPPORTUNITIES);
   const [messages, setMessages] = useState(INITIAL_MESSAGES);
   const [diagnostics, setDiagnostics] = useState(INITIAL_DIAGNOSTICS);
   const [npsSurveys, setNpsSurveys] = useState([]);
+  const [demoRequests, setDemoRequests] = useState([]);
   const [ready, setReady] = useState(false);
 
   useEffect(() => {
@@ -25,10 +27,12 @@ export function DataProvider({ children }) {
       const rawMsg = window.localStorage.getItem(MSG_KEY);
       const rawDiag = window.localStorage.getItem(DIAG_KEY);
       const rawNps = window.localStorage.getItem(NPS_KEY);
+      const rawDemoReq = window.localStorage.getItem(DEMO_REQ_KEY);
       if (rawOpp) setOpportunities(JSON.parse(rawOpp));
       if (rawMsg) setMessages(JSON.parse(rawMsg));
       if (rawDiag) setDiagnostics(JSON.parse(rawDiag));
       if (rawNps) setNpsSurveys(JSON.parse(rawNps));
+      if (rawDemoReq) setDemoRequests(JSON.parse(rawDemoReq));
     } catch (e) {}
     setReady(true);
   }, []);
@@ -37,19 +41,35 @@ export function DataProvider({ children }) {
   useEffect(() => { if (ready) try { window.localStorage.setItem(MSG_KEY, JSON.stringify(messages)); } catch (e) {} }, [messages, ready]);
   useEffect(() => { if (ready) try { window.localStorage.setItem(DIAG_KEY, JSON.stringify(diagnostics)); } catch (e) {} }, [diagnostics, ready]);
   useEffect(() => { if (ready) try { window.localStorage.setItem(NPS_KEY, JSON.stringify(npsSurveys)); } catch (e) {} }, [npsSurveys, ready]);
+  useEffect(() => { if (ready) try { window.localStorage.setItem(DEMO_REQ_KEY, JSON.stringify(demoRequests)); } catch (e) {} }, [demoRequests, ready]);
 
   const updateStatus = (id, status) => {
     setOpportunities((prev) => prev.map((o) => (o.id === id ? { ...o, status } : o)));
   };
 
+  // Licencia + tamaño estimado de la oportunidad — se puede definir desde el
+  // pipeline (antes de llegar al Configurador MDM), para ponderar el valor
+  // del negocio desde etapas tempranas.
+  const updateOpportunityLicense = (id, { licenseId, deviceCountEstimate }) => {
+    setOpportunities((prev) =>
+      prev.map((o) => (o.id === id ? { ...o, licenseId, deviceCountEstimate } : o))
+    );
+  };
+
   // Diagnóstico público → crea el registro de diagnóstico + la oportunidad "nueva",
   // enrutada por región según el Estado seleccionado (o la ciudad como respaldo).
   const addOpportunityFromDiagnostic = (opp) => {
-    const region = guessRegionFromState(opp.state) || guessRegion(opp.city) || "Sin asignar";
+    const region = guessRegion(opp.city) || guessRegionFromState(opp.state) || "Sin asignar";
     const id = "o" + Date.now();
     const newOpp = {
       id,
       client: opp.client || "Prospecto sin nombre",
+      company: opp.company || "",
+      position: opp.position || "",
+      email: opp.email || "",
+      phone: opp.phone || "",
+      whatsapp: opp.whatsapp || opp.phone || "",
+      contactPreference: opp.contactPreference || "",
       city: opp.city,
       state: opp.state,
       region,
@@ -69,6 +89,32 @@ export function DataProvider({ children }) {
       ...prev,
     ]);
     return newOpp;
+  };
+
+  // Solicitud de demostración — independiente de la oportunidad en sí (se puede
+  // agendar al momento del diagnóstico o después, desde el portal del vendedor).
+  const addDemoRequest = (data) => {
+    const id = "dr" + Date.now();
+    const request = {
+      id,
+      opportunityId: data.opportunityId || null,
+      attendeeName: data.attendeeName,
+      company: data.company,
+      email: data.email,
+      phone: data.phone,
+      whatsapp: data.whatsapp,
+      requestedDate: data.requestedDate,
+      requestedTime: data.requestedTime,
+      timezone: data.timezone || "America/Mexico_City",
+      durationMinutes: data.durationMinutes || 30,
+      modality: data.modality || "videollamada",
+      comments: data.comments || "",
+      consentInvite: !!data.consentInvite,
+      status: "agendada",
+      createdAt: new Date().toISOString().slice(0, 10),
+    };
+    setDemoRequests((prev) => [request, ...prev]);
+    return request;
   };
 
   // Gerente asigna la oportunidad a un vendedor de su región (y confirma el segmento).
@@ -149,6 +195,9 @@ export function DataProvider({ children }) {
     const newOpp = {
       id,
       client: opp.client || "Cliente sin nombre",
+      company: opp.company || "",
+      email: opp.email || "",
+      phone: opp.phone || "",
       city: opp.city || "",
       state: opp.state || "",
       region: vendor.region,
@@ -171,15 +220,20 @@ export function DataProvider({ children }) {
   };
 
   const addMessage = (msg) => {
-    setMessages((prev) => [{ id: "m" + Date.now(), createdAt: new Date().toISOString().slice(0, 10), ...msg }, ...prev]);
+    setMessages((prev) => [{ id: "m" + Date.now(), createdAt: new Date().toISOString().slice(0, 10), read: false, ...msg }, ...prev]);
+  };
+
+  const markMessageRead = (id) => {
+    setMessages((prev) => prev.map((m) => (m.id === id ? { ...m, read: true } : m)));
   };
 
   return (
     <DataContext.Provider
       value={{
-        opportunities, messages, diagnostics, npsSurveys, ready,
-        updateStatus, addOpportunityFromDiagnostic, addOpportunityFromVendorDiagnostic, assignToVendor,
-        sendToTechnician, saveDeliveryConfig, toggleChecklistItem, completeDelivery, submitNps, addMessage,
+        opportunities, messages, diagnostics, npsSurveys, demoRequests, ready,
+        updateStatus, updateOpportunityLicense, addOpportunityFromDiagnostic, addOpportunityFromVendorDiagnostic, assignToVendor,
+        sendToTechnician, saveDeliveryConfig, toggleChecklistItem, completeDelivery, submitNps, addMessage, markMessageRead,
+        addDemoRequest,
       }}
     >
       {children}

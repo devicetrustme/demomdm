@@ -9,7 +9,7 @@ import { AppTopBar } from "../../../../components/ui";
 
 function MensajesContent() {
   const { session } = useSession();
-  const { messages } = useDataStore();
+  const { messages, markMessageRead } = useDataStore();
   const myMessages = messages.filter((m) => m.to === session.vendorId);
 
   return (
@@ -22,14 +22,21 @@ function MensajesContent() {
 
         <div className="space-y-2.5">
           {myMessages.map((m) => (
-            <div key={m.id} className="bg-white border border-slate-200 rounded-xl p-3.5">
+            <button
+              key={m.id}
+              onClick={() => !m.read && markMessageRead(m.id)}
+              className={`w-full text-left bg-white border rounded-xl p-3.5 transition-colors ${
+                m.read ? "border-slate-200" : "border-blue-300 bg-blue-50/40"
+              }`}
+            >
               <div className="flex items-center gap-2 mb-1.5">
+                {!m.read && <span className="w-2 h-2 rounded-full bg-blue-600 shrink-0" />}
                 <MessageCircle className="w-3.5 h-3.5 text-blue-600" />
                 <span className="text-sm font-medium text-slate-900">{m.from}</span>
                 <span className="text-xs text-slate-400 ml-auto">{m.createdAt}</span>
               </div>
               <p className="text-sm text-slate-600 leading-relaxed">{m.text}</p>
-            </div>
+            </button>
           ))}
           {myMessages.length === 0 && (
             <p className="text-sm text-slate-400 text-center pt-10">No tienes mensajes todavía.</p>

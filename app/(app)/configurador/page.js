@@ -7,28 +7,33 @@ import {
 } from "lucide-react";
 import { RequireRole } from "../../../lib/require-role";
 import { useDataStore } from "../../../lib/data-store";
+import { generateTrackingNumber } from "../../../lib/validators";
 import { AppTopBar, Pill, Stepper, PlatformIcon } from "../../../components/ui";
-import { POLICIES, APP_CATALOG, PROFILE_TYPES, DEFAULT_POLICIES_BY_PROFILE } from "../../../lib/mock-data";
+import { POLICIES, APP_CATALOG, PROFILE_TYPES, DEFAULT_POLICIES_BY_PROFILE, LICENSE_CATALOG, licenseById } from "../../../lib/mock-data";
 
-const STEPS = ["Cliente", "Plataforma", "Cantidad de equipos", "Tipo de uso", "Seguridad y apps", "Confirmar"];
+const STEPS = ["Licencia", "Cliente", "Plataforma", "Cantidad de equipos", "Tipo de uso", "Seguridad y apps", "Confirmar"];
 
 function ConfiguradorContent() {
   const params = useSearchParams();
   const router = useRouter();
-  const { opportunities, sendToTechnician, saveDeliveryConfig, updateStatus } = useDataStore();
+  const { opportunities, sendToTechnician, saveDeliveryConfig, updateStatus, updateOpportunityLicense } = useDataStore();
 
   const prefilledId = params.get("clientId");
   const prefilledName = params.get("clientName");
+  const prefilledOpp = opportunities.find((o) => o.id === prefilledId);
 
   const [step, setStep] = useState(0);
   const [clientId, setClientId] = useState(prefilledId || "");
   const [clientName, setClientName] = useState(prefilledName || "");
+  const [licenseId, setLicenseId] = useState(prefilledOpp?.licenseId || "");
+  const [consoleRecipient, setConsoleRecipient] = useState({ name: "", position: "", company: "", email: "", phone: "" });
   const [platform, setPlatform] = useState(null);
-  const [totalDevices, setTotalDevices] = useState("");
+  const [totalDevices, setTotalDevices] = useState(prefilledOpp?.deviceCountEstimate ? String(prefilledOpp.deviceCountEstimate) : "");
   const [segmentMode, setSegmentMode] = useState(null); // rol | area | unico
   const [segments, setSegments] = useState([]);
   const [activeSegmentId, setActiveSegmentId] = useState(null);
   const [sent, setSent] = useState(false);
+  const [generatedTracking, setGeneratedTracking] = useState(null);
   const [acceptedByName, setAcceptedByName] = useState("");
   const [acceptedConfirm, setAcceptedConfirm] = useState(false);
 
@@ -73,13 +78,17 @@ function ConfiguradorContent() {
   };
 
   const canNext = useMemo(() => {
-    if (step === 0) return clientName.trim().length > 0;
-    if (step === 1) return !!platform;
-    if (step === 2) return totalTarget > 0 && !!segmentMode && segments.length > 0 && segments.every((s) => !!s.platform);
-    if (step === 3) return segments.length > 0 && segments.every((s) => s.name && s.devices && s.profileType && s.zeroTouchEnabled !== null && (!s.zeroTouchEnabled || s.zeroTouchEmail));
-    if (step === 4) return segments.every((s) => s.policies.length > 0);
+    if (step === 0) {
+      const r = consoleRecipient;
+      return !!licenseId && !!r.name && !!r.position && !!r.company && !!r.email && !!r.phone;
+    }
+    if (step === 1) return clientName.trim().length > 0;
+    if (step === 2) return !!platform;
+    if (step === 3) return totalTarget > 0 && !!segmentMode && segments.length > 0 && segments.every((s) => !!s.platform);
+    if (step === 4) return segments.length > 0 && segments.every((s) => s.name && s.devices && s.profileType && s.zeroTouchEnabled !== null && (!s.zeroTouchEnabled || s.zeroTouchEmail));
+    if (step === 5) return segments.every((s) => s.policies.length > 0);
     return true;
-  }, [step, clientName, platform, totalTarget, segmentMode, segments]);
+  }, [step, licenseId, consoleRecipient, clientName, platform, totalTarget, segmentMode, segments]);
 
   const goNext = () => step < STEPS.length - 1 && setStep(step + 1);
   const goBack = () => step > 0 && setStep(step - 1);
@@ -108,18 +117,26 @@ function ConfiguradorContent() {
         return items;
       });
       sendToTechnician(clientId, checklist);
+      const trackingNumber = generateTrackingNumber();
+      setGeneratedTracking(trackingNumber);
+      const lic = licenseById(licenseId);
+      const monthlyValue = lic ? lic.price * totalTarget : 0;
       saveDeliveryConfig(clientId, {
         platform, segments,
+        licenseId, consoleRecipient,
+        monthlyValue, annualValue: monthlyValue * 12,
         acceptedBy: acceptedByName,
         acceptedAt: new Date().toISOString().slice(0, 10),
+        trackingNumber,
       });
+      updateOpportunityLicense(clientId, { licenseId, deviceCountEstimate: totalTarget });
       updateStatus(clientId, "delivery");
     }
     setSent(true);
   };
 
   const openPrintableDocument = () => {
-    window.open(`/configurador/documento?clientId=${clientId}`, "_blank");
+    router.push(`/configurador/documento?clientId=${clientId}`);
   };
 
   if (sent) {
@@ -131,9 +148,12 @@ function ConfiguradorContent() {
             <Check className="w-7 h-7 text-emerald-600" />
           </div>
           <p className="text-base font-semibold text-slate-900 mb-1">PDF generado y enviado</p>
-          <p className="text-sm text-slate-500 mb-6">
+          <p className="text-sm text-slate-500 mb-2">
             El resumen técnico de {clientName} se envió al correo del cliente.
           </p>
+          {generatedTracking && (
+            <p className="text-sm text-blue-600 font-medium mb-6">Folio de seguimiento: {generatedTracking}</p>
+          )}
           <div className="space-y-2">
             <button
               onClick={openPrintableDocument}
@@ -162,13 +182,19 @@ function ConfiguradorContent() {
       <Stepper steps={STEPS} current={step} />
       <div className="max-w-2xl mx-auto px-5 py-6">
         {step === 0 && (
+          <StepLicenciaConsola
+            licenseId={licenseId} setLicenseId={setLicenseId}
+            consoleRecipient={consoleRecipient} setConsoleRecipient={setConsoleRecipient}
+          />
+        )}
+        {step === 1 && (
           <StepCliente
             clientId={clientId} clientName={clientName} setClientId={setClientId} setClientName={setClientName}
             opportunities={opportunities} locked={!!prefilledId}
           />
         )}
-        {step === 1 && <StepPlataforma platform={platform} setPlatform={setPlatform} />}
-        {step === 2 && (
+        {step === 2 && <StepPlataforma platform={platform} setPlatform={setPlatform} />}
+        {step === 3 && (
           <StepVolumen
             totalDevices={totalDevices} setTotalDevices={setTotalDevices}
             segmentMode={segmentMode} setSegmentMode={setSegmentMode}
@@ -176,19 +202,20 @@ function ConfiguradorContent() {
             totalAssigned={totalAssigned} totalTarget={totalTarget} globalPlatform={platform}
           />
         )}
-        {step === 3 && (
+        {step === 4 && (
           <StepPerfiles segments={segments} updateSegment={updateSegment} />
         )}
-        {step === 4 && (
+        {step === 5 && (
           <StepPoliticasApps
             segments={segments} platform={platform}
             activeSegmentId={activeSegmentId || segments[0]?.id} setActiveSegmentId={setActiveSegmentId}
             togglePolicy={togglePolicy} toggleApp={toggleApp}
           />
         )}
-        {step === 5 && (
+        {step === 6 && (
           <StepConfirmar
             clientName={clientName} platform={platform} segments={segments}
+            licenseId={licenseId} totalTarget={totalTarget} consoleRecipient={consoleRecipient}
             acceptedByName={acceptedByName} setAcceptedByName={setAcceptedByName}
             acceptedConfirm={acceptedConfirm} setAcceptedConfirm={setAcceptedConfirm}
           />
@@ -216,6 +243,50 @@ function ConfiguradorContent() {
             </button>
           )}
         </div>
+      </div>
+    </div>
+  );
+}
+
+// Paso 0 — Licencia y persona que recibirá la consola
+function StepLicenciaConsola({ licenseId, setLicenseId, consoleRecipient, setConsoleRecipient }) {
+  const update = (field) => (e) => setConsoleRecipient({ ...consoleRecipient, [field]: e.target.value });
+
+  return (
+    <div>
+      <p className="text-base font-semibold text-slate-900 mb-1">¿Qué licencia va a adquirir el cliente?</p>
+      <p className="text-sm text-slate-400 mb-4">Precios por dispositivo al mes, en MXN sin IVA incluido.</p>
+      <div className="grid grid-cols-3 gap-2 mb-6">
+        {LICENSE_CATALOG.map((l) => (
+          <button
+            key={l.id}
+            onClick={() => setLicenseId(l.id)}
+            className={`text-left rounded-lg border px-3 py-3 transition-colors ${
+              licenseId === l.id ? "border-blue-600 bg-blue-50" : "border-slate-200 hover:border-blue-300"
+            }`}
+          >
+            <p className="text-sm font-semibold text-slate-900">{l.label}</p>
+            <p className="text-sm text-blue-600 font-medium">${l.price}<span className="text-xs text-slate-400">/equipo/mes</span></p>
+            <p className="text-xs text-slate-400 mt-1">{l.description}</p>
+          </button>
+        ))}
+      </div>
+
+      <p className="text-base font-semibold text-slate-900 mb-1">¿Quién va a recibir la consola de administración?</p>
+      <p className="text-sm text-slate-400 mb-4">
+        Esta persona aparecerá al final del documento como responsable de la cuenta.
+      </p>
+      <div className="space-y-2.5">
+        <input value={consoleRecipient.name} onChange={update("name")} placeholder="Nombre completo"
+          className="w-full text-base border border-slate-200 rounded-lg px-3 py-2.5" />
+        <input value={consoleRecipient.position} onChange={update("position")} placeholder="Puesto"
+          className="w-full text-base border border-slate-200 rounded-lg px-3 py-2.5" />
+        <input value={consoleRecipient.company} onChange={update("company")} placeholder="Compañía"
+          className="w-full text-base border border-slate-200 rounded-lg px-3 py-2.5" />
+        <input value={consoleRecipient.email} onChange={update("email")} placeholder="Correo"
+          className="w-full text-base border border-slate-200 rounded-lg px-3 py-2.5" />
+        <input value={consoleRecipient.phone} onChange={update("phone")} placeholder="Teléfono celular"
+          className="w-full text-base border border-slate-200 rounded-lg px-3 py-2.5" />
       </div>
     </div>
   );
@@ -596,12 +667,23 @@ function CustomAppsField({ segment, toggleApp }) {
 }
 
 // Paso 6 — Checkup final
-function StepConfirmar({ clientName, platform, segments, acceptedByName, setAcceptedByName, acceptedConfirm, setAcceptedConfirm }) {
+function StepConfirmar({ clientName, platform, segments, licenseId, totalTarget, consoleRecipient, acceptedByName, setAcceptedByName, acceptedConfirm, setAcceptedConfirm }) {
   const platformLabel = { android: "Android", ios: "iOS", both: "Ambas" }[platform];
+  const lic = licenseById(licenseId);
+  const monthlyValue = lic ? lic.price * totalTarget : 0;
   return (
     <div>
       <p className="text-base font-semibold text-slate-900 mb-1">Revisa antes de generar el documento</p>
       <p className="text-sm text-slate-400 mb-4">{clientName} · Plataforma: {platformLabel}</p>
+
+      {lic && (
+        <div className="border border-blue-100 bg-blue-50 rounded-xl p-4 mb-4">
+          <p className="text-sm font-medium text-slate-900 mb-1">Licencia {lic.label} · {totalTarget} equipos</p>
+          <p className="text-sm text-blue-700 font-medium">
+            ${monthlyValue.toLocaleString("es-MX")} MXN/mes · ${(monthlyValue * 12).toLocaleString("es-MX")} MXN/año
+          </p>
+        </div>
+      )}
 
       <div className="space-y-3 mb-5">
         {segments.map((s) => (
@@ -622,6 +704,13 @@ function StepConfirmar({ clientName, platform, segments, acceptedByName, setAcce
             )}
           </div>
         ))}
+      </div>
+
+      <div className="border border-slate-200 rounded-xl p-4 mb-4">
+        <p className="text-sm font-medium text-slate-900 mb-2">Persona que recibirá la consola</p>
+        <p className="text-sm text-slate-600">{consoleRecipient.name} · {consoleRecipient.position}</p>
+        <p className="text-sm text-slate-400">{consoleRecipient.company}</p>
+        <p className="text-sm text-slate-400">{consoleRecipient.email} · {consoleRecipient.phone}</p>
       </div>
 
       <div className="border border-slate-200 rounded-xl p-4 bg-slate-50">

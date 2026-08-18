@@ -30,7 +30,7 @@ export default function Chatbot() {
       {open && (
         <div className="mb-3 w-72 bg-white border border-slate-200 rounded-xl shadow-lg overflow-hidden flex flex-col">
           <div className="flex items-center justify-between px-4 py-3 bg-blue-600">
-            <span className="text-sm font-medium text-white">Asistente HONOR</span>
+            <span className="text-sm font-medium text-white">Asistente ScaleFusion</span>
             <X onClick={() => setOpen(false)} className="w-4 h-4 text-white cursor-pointer" />
           </div>
           <div className="flex-1 max-h-72 overflow-y-auto p-3 space-y-2">

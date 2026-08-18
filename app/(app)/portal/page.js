@@ -1,17 +1,34 @@
 "use client";
 
+import { useState, useEffect } from "react";
 import Link from "next/link";
-import { Briefcase, ClipboardPlus, Truck, MessageCircle, User, ChevronRight } from "lucide-react";
+import { useRouter } from "next/navigation";
+import { Briefcase, ClipboardPlus, Truck, MessageCircle, User, ChevronRight, X, Bell } from "lucide-react";
 import { RequireRole } from "../../../lib/require-role";
 import { useSession } from "../../../lib/session";
 import { useDataStore } from "../../../lib/data-store";
 import { AppTopBar, PhoneFrame } from "../../../components/ui";
 
 function PortalContent() {
-  const { session } = useSession();
-  const { opportunities } = useDataStore();
+  const { session, justLoggedIn, clearJustLoggedIn } = useSession();
+  const { opportunities, messages } = useDataStore();
+  const router = useRouter();
   const myOpps = opportunities.filter((o) => o.vendorId === session.vendorId);
   const enProceso = myOpps.filter((o) => o.deliveryStatus && o.deliveryStatus !== "none").length;
+  const unread = messages.filter((m) => m.to === session.vendorId && !m.read);
+
+  const [showPopup, setShowPopup] = useState(false);
+
+  // Al arrancar la sesión (justo después del login), si hay mensajes o
+  // avisos nuevos, se muestra una sola vez — no se repite al navegar
+  // internamente dentro del portal.
+  useEffect(() => {
+    if (justLoggedIn) {
+      if (unread.length > 0) setShowPopup(true);
+      clearJustLoggedIn();
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [justLoggedIn]);
 
   const menu = [
     {
@@ -38,7 +55,7 @@ function PortalContent() {
     <div>
       <AppTopBar title="Portal del vendedor" />
       <PhoneFrame>
-        <div className="h-full flex flex-col">
+        <div className="h-full flex flex-col relative">
           <div className="px-5 pt-5 pb-4">
             <p className="text-sm text-slate-400">Hola,</p>
             <p className="text-base font-semibold text-slate-900">{session.name}</p>
@@ -64,13 +81,49 @@ function PortalContent() {
           </div>
 
           <div className="border-t border-slate-100 px-5 py-3 flex justify-around">
-            <Link href="/portal/mensajes" className="flex items-center gap-1.5 text-sm text-slate-400">
-              <MessageCircle className="w-4 h-4" /> Mensajes
+            <Link href="/portal/mensajes" className="relative flex items-center gap-1.5 text-sm text-slate-400">
+              <MessageCircle className="w-4 h-4" />
+              Mensajes
+              {unread.length > 0 && (
+                <span className="absolute -top-1.5 -right-2.5 min-w-[16px] h-4 px-1 rounded-full bg-red-500 text-white text-[10px] font-medium flex items-center justify-center">
+                  {unread.length}
+                </span>
+              )}
             </Link>
             <Link href="/portal/perfil" className="flex items-center gap-1.5 text-sm text-slate-400">
               <User className="w-4 h-4" /> Mi perfil
             </Link>
           </div>
+
+          {showPopup && (
+            <div className="absolute inset-0 bg-slate-900/40 flex items-end justify-center z-10">
+              <div className="bg-white rounded-t-2xl w-full p-5 shadow-lg">
+                <div className="flex items-center justify-between mb-3">
+                  <div className="flex items-center gap-2">
+                    <Bell className="w-4 h-4 text-blue-600" />
+                    <p className="text-base font-semibold text-slate-900">
+                      {unread.length === 1 ? "Tienes 1 mensaje nuevo" : `Tienes ${unread.length} mensajes nuevos`}
+                    </p>
+                  </div>
+                  <button onClick={() => setShowPopup(false)}><X className="w-4 h-4 text-slate-400" /></button>
+                </div>
+                <div className="space-y-2 mb-4 max-h-40 overflow-y-auto">
+                  {unread.slice(0, 3).map((m) => (
+                    <div key={m.id} className="bg-slate-50 rounded-lg px-3 py-2">
+                      <p className="text-sm font-medium text-slate-800">{m.from}</p>
+                      <p className="text-sm text-slate-500 line-clamp-2">{m.text}</p>
+                    </div>
+                  ))}
+                </div>
+                <button
+                  onClick={() => router.push("/portal/mensajes")}
+                  className="w-full bg-blue-600 text-white text-sm font-medium py-2.5 rounded-lg"
+                >
+                  Ver mensajes
+                </button>
+              </div>
+            </div>
+          )}
         </div>
       </PhoneFrame>
     </div>
