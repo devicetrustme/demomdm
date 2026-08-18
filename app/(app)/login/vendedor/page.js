@@ -4,17 +4,19 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { Shield, User } from "lucide-react";
 import { useSession } from "../../../../lib/session";
-import { VENDORS } from "../../../../lib/mock-data";
+import { oneVendorPerRegion } from "../../../../lib/mock-data";
+
+const REGION_VENDORS = oneVendorPerRegion();
 
 export default function LoginVendedorPage() {
   const { login } = useSession();
   const router = useRouter();
-  const [email, setEmail] = useState("alberto.ramirez@honor.mx");
+  const [vendorId, setVendorId] = useState(REGION_VENDORS.find((v) => v.id === "v1")?.id || REGION_VENDORS[0]?.id);
   const [password, setPassword] = useState("demo123");
 
   const handleLogin = (e) => {
     e.preventDefault();
-    const vendor = VENDORS[0]; // usuario demo fijo para validar la UI
+    const vendor = REGION_VENDORS.find((v) => v.id === vendorId) || REGION_VENDORS[0];
     login("vendor", vendor.name, { vendorId: vendor.id, region: vendor.region });
     router.push("/portal");
   };
@@ -27,17 +29,21 @@ export default function LoginVendedorPage() {
             <User className="w-5 h-5 text-white" />
           </div>
           <p className="text-base font-semibold text-slate-900">Portal del vendedor</p>
-          <p className="text-sm text-slate-400">Acceso interno — HONOR México</p>
+          <p className="text-sm text-slate-400">Acceso interno — ScaleFusion Telcel</p>
         </div>
 
         <form onSubmit={handleLogin} className="space-y-3">
           <div>
-            <label className="text-sm text-slate-500 mb-1 block">Correo</label>
-            <input
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
+            <label className="text-sm text-slate-500 mb-1 block">Vendedor (uno por región, demo)</label>
+            <select
+              value={vendorId}
+              onChange={(e) => setVendorId(e.target.value)}
               className="w-full text-base border border-slate-200 rounded-lg px-3 py-2.5"
-            />
+            >
+              {REGION_VENDORS.map((v) => (
+                <option key={v.id} value={v.id}>{v.region} — {v.name}</option>
+              ))}
+            </select>
           </div>
           <div>
             <label className="text-sm text-slate-500 mb-1 block">Contraseña</label>

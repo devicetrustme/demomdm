@@ -7,6 +7,21 @@ en español, fácil de leer, de qué cambió y por qué.
 
 ---
 
+## 2026-08-17 (tarde)
+
+**Corregido**
+- **Login del vendedor siempre entraba con el mismo usuario** (Alberto
+  Ramírez, Región 3), sin importar qué tan poblada estuviera la demo en
+  las demás regiones. Ahora tiene un selector con **un vendedor
+  representativo por cada una de las 9 regiones** (R1-R9), mismo patrón
+  que ya usan los logins de gerente y subdirector — así se puede mostrar
+  la demo desde cualquier región con datos reales ya cargados (pipeline,
+  mensajes, oportunidades).
+- Nueva función `oneVendorPerRegion()` en `lib/mock-data.js`, reutilizable
+  si se necesita este mismo patrón en otro lado.
+
+---
+
 ## 2026-08-17
 
 **Agregado**
